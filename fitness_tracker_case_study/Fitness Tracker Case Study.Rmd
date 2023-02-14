@@ -1,0 +1,182 @@
+---
+title: "Fitness Tracker Case Study"
+author: "Tyler Dussuau"
+date: "2023-02-13"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+```
+
+## Business Task
+
+The goal is to identify trends and patterns in those who use fitness trackers. The drawn conclusions will drive the marketing strategy of Bellabeat, a company that manufactures smart devices focused on women. Specifically, the recommendations provided will be for the BellaBeat Time, a smart watch.
+
+The dataset contains tables describing:
+	- activity details by day, hour, and minute
+	- weight
+	- heart rate 
+
+Within these tables, the fields included are:
+
+* daily:
+	+ id
+	+ log id
+	+ date
+	+ total steps
+	+ total calories
+	+ total distance
+	+ distance based on activity level (sedentary, lightly active, moderately active, very active)
+	+ duration based on activity level (sedentary, lightly active, moderately active, very active)
+	+ weight
+	+ BMI
+	+ Fat
+
+* hourly:
+	+ id
+	+ log id
+	+ date
+	+ steps in hour
+	+ total intensity
+	+ average intensity
+	+ calories
+
+* minute:
+	+ id
+	+ log id
+	+ date
+	+ steps
+	+ METS
+	+ calories
+	+ sleep
+	
+The tables with information based on day include 33 people, except the weight table. The weight table included 8 people. All the tables with information based on hour and minute include 33 people. Heart rate inlcudes data for 14 people. This data is from March 12, 2016 to May 12, 2016. It was collected by a survey on Amazon Mechanical Turk. 30 users consented for their FitBit data to be used.
+
+## BMI Distribution
+
+```{r bmi, echo=FALSE}
+bmi <- read_csv('/Users/tyduuu/Documents/Data Analytics/Case Studies/Case Study 2 - Fitbit/Fitabase Data 4.12.16-5.12.16/files i actually need/weightLogInfo_merged.csv')
+```
+Using a histogram, we can see that of the eight users, most of them are overweight or near overweight. A healthy BMI is 18.5 and 24.9, according to the CDC.
+
+Reference: https://www.cdc.gov/healthyweight/assessing/index.html#:~:text=If%20your%20BMI%20is%20less,falls%20within%20the%20overweight%20range.
+
+```{r bmi hist, echo=FALSE}
+bmi %>% group_by(Id) %>% summarise(BMI = mean(BMI)) %>%  ggplot(mapping=aes(BMI)) + geom_histogram(color='black', fill='red', alpha= 0.6, bins=20)
+```
+
+## Sleep Duration
+
+Do users get enough sleep? We will create a histogram to see the distribution of sleep durations.
+
+```{r sleep, echo=FALSE}
+  sleep <- read_csv('/Users/tyduuu/Documents/Data Analytics/Case Studies/Case Study 2 - Fitbit/Fitabase Data 4.12.16-5.12.16/daily/sleepDay_merged.csv')
+  sleep %>% ggplot(mapping=aes(TotalMinutesAsleep)) + geom_histogram(color='black', fill='red', alpha= 0.6, bins=20) + ggtitle('Sleep Duration Distribution') + ylab('Count') + xlab('Minutes')
+```
+Most users tend to get a healthy amount of sleep. If we take another look, we can see that 50% of sleep durations fall between 350 and 490 minutes. This means that there are also users who are sleep for shorter periods and longer periods than what is recommended. 
+
+```{r sleep box, echo=FALSE}
+  sleep %>% ggplot(mapping=aes(TotalMinutesAsleep)) + geom_boxplot(color='black', fill='red', alpha= 0.6, bins=20) +  ggtitle('Sleep Duration Distribution')+ xlab('Minutes')
+```
+
+
+## Average Heart Rate
+
+Let's look at how users' heart rates change during the day compared to sleep. According to Harvard Health, a healthy heart rates during sleep should be around 20% - 30% less than the resting heart rate. We will take the average heart rate during the day (6am - 9pm)
+
+```{r heart, echo=FALSE}
+heart_rate <- read_csv('/Users/tyduuu/Documents/Data Analytics/Case Studies/Case Study 2 - Fitbit/Fitabase Data 4.12.16-5.12.16/heartrate_seconds_merged.csv')
+heart_rate$Time <- strptime(heart_rate$Time, format='%m/%d/%Y %I:%M:%S %p')
+heart_rate_with_hours <- heart_rate %>% select(-Time)
+heart_rate_with_date <- heart_rate %>% select(-Time)
+
+heart_rate_with_hours$hour <- hour(heart_rate$Time)
+heart_rate_with_date$date <- date(heart_rate$Time)
+```
+
+``` {r heart summary day, echo=FALSE}
+avg_day <- heart_rate_with_hours %>% filter(hour >= 6 & hour < 21) %>% group_by(hour) 
+avg_day <- mean(avg_day$Value)
+
+heart_rate_with_hours %>% filter(hour >= 6 & hour < 21) %>%  group_by(hour) %>% summarise(heart_rate = mean(Value)) %>% ggplot(mapping=aes(hour, heart_rate)) + geom_line() + geom_point() + geom_hline(yintercept=avg_day, colour='blue') + annotate("text", x = 7, y = avg_day + 3, label = "Average = 80.93bpm", size=3) + scale_y_continuous(expand = c(0, 0), limits = c(0, 95)) +  ggtitle('Average Hourly Heart Rate', subtitle="During the day (6am-8pm)") + ylab('Heart Rate (bpm)') + xlab('Hour')
+```
+The average heart rate is 80.93bpm. So, the average sleeping heart rate should be between 56.51bpm and 64.74bpm. The graph will be split into two. The first part of the graph is between 9pm-11pm. The second graph is between 12am-5am.
+
+``` {r heart summary night, echo=FALSE}
+
+heart_rate_with_hours %>% filter(hour >= 21) %>%  group_by(hour) %>% summarise(value = mean(Value)) %>% ggplot(mapping=aes(hour, value)) + geom_line() + geom_point() + scale_y_continuous(expand = c(0, 0), limits = c(0, 95)) + ggtitle('Average Hourly Heart Rate', subtitle="During the night (9pm-11pm)") + ylab('Heart Rate (bpm)') + xlab('Hour')
+```
+``` {r heart summary night again, echo=FALSE}
+heart_rate_with_hours %>% filter(hour < 6) %>%  group_by(hour) %>% summarise(value = mean(Value)) %>% ggplot(mapping=aes(hour, value)) + geom_line() + geom_point() + geom_hline(yintercept=66.99, colour='blue') + annotate("text", x = 4.5, y = 66.99 + 3, label = "Average = 66.99bpm", size = 3) + scale_y_continuous(expand = c(0, 0), limits = c(0, 95))+ ggtitle('Average Hourly Heart Rate', subtitle="During the night (12am-5am)") + ylab('Heart Rate (bpm)') + xlab('Hour')
+```
+The average heart rate throughout the day (6am-9pm) is 80.61 bpm. One thing this fails to consider is not all of these heart rates are druing resting heart rates. Of course, exercise will increase the value of heart rate. It is most likely lower. At night, it is 65.56bpm. While it is not over the threshold by much, this is also means many users have high heart rates during sleep, indicating bad sleep quality.
+
+## Activity Levels
+
+``` {r activity, echo=FALSE}
+activity <- read_csv('/Users/tyduuu/Documents/Data Analytics/Case Studies/Case Study 2 - Fitbit/Fitabase Data 4.12.16-5.12.16/daily/dailyActivity_merged.csv')
+```
+If we compare histograms for each activity level, as activity level increases, the graphs turn from negatively skewed to postiviely skewed, indicating users are more often lightly active and sedentary active. There is no insight here since we cannot expect users to be very active and moderately active for long.
+
+``` {r sedentary, echo=FALSE}
+activity %>%  ggplot(mapping=aes(SedentaryMinutes)) + geom_histogram(color='black', fill='red', alpha= 0.6, bins=20) + ggtitle('Duration Distribution', subtitle='For sedentary activity') + ylab('Count') + xlab('Minutes')
+```
+
+``` {r light, echo=FALSE}
+activity %>%  ggplot(mapping=aes(LightlyActiveMinutes)) + geom_histogram(color='black', fill='red', alpha= 0.6, bins=20) + ggtitle('Duration Distribution', subtitle='For lightly active activity') + ylab('Count') + xlab('Minutes')
+```
+
+``` {r moderate, echo=FALSE}
+activity %>%  ggplot(mapping=aes(ModeratelyActiveMinutes)) + geom_histogram(color='black', fill='red', alpha= 0.6, bins=20) + ggtitle('Duration Distribution', subtitle='For moderately active activity') + ylab('Count') + xlab('Minutes')
+```
+
+``` {r active, echo=FALSE}
+activity %>%  ggplot(mapping=aes(VeryActiveMinutes)) + geom_histogram(color='black', fill='red', alpha= 0.6, bins=20)  + ggtitle('Duration Distribution', subtitle='For very active activity') + ylab('Count') + xlab('Minutes')
+```
+Let's look another aspect. It is recommended for users to be moderately active for at least 150 minutes or very active for 75 minutes a week. Are users achieving this goal?
+
+``` {r activity split, echo=FALSE}
+activity_week <- activity
+activity_week$ActivityDate <- strptime(activity_week$ActivityDate, format='%m/%d/%Y')
+activity_week$week <- strftime(activity_week$ActivityDate, format = '%V')
+activity_week <- activity_week %>% select(-ActivityDate)
+```
+
+
+``` {r activity week very, echo=FALSE}
+activity_week %>% group_by(week) %>% summarise(average_very_active = mean(VeryActiveMinutes)) %>%  ggplot(mapping=aes(week, average_very_active)) + geom_point() + geom_line(aes(group=1)) + scale_y_continuous(expand = c(0, 0), limits = c(0, 30)) + ggtitle('Average Duration', subtitle='For very active activity') + ylab('Average Minutes') + xlab('Week')
+```
+
+``` {r activity week moderate, echo=FALSE}
+activity_week %>% group_by(week) %>% summarise(average_moderate_mins = mean(ModeratelyActiveMinutes)) %>% ggplot(mapping=aes(week, average_moderate_mins)) + geom_point() + geom_line(aes(group=1)) + scale_y_continuous(expand = c(0, 0), limits = c(0, 30))  + ggtitle('Average Duration', subtitle='For moderately active activity') + ylab('Average Minutes') + xlab('Week')
+```
+
+Most users are not getting the recommended amount of exercise during the week.
+
+## Recommendations
+
+Note: There are limitations to these conclusions. This data is from seven years ago. Also, the data only reflects thirty users. For some tables, there are as a little as eight people. If possible, it would be best to recollect data to get a more accurate view of users. In a new study, it should include more users.
+
+Based on the available data, I have three recommendations:
+
+1) We should market towards people trying to lose weight or those who are helping other lose weight. The BMI distribution chart shows that most people who have FitBits are overweight. So, one demographic to cater is dietitans. Their clients would need a way to monitor their weight loss. The Bellabeat Leaf could monitor activity to see how users are reaching their daily amount of exercise.
+
+2) Sleep durations vary from 5.5-9 hours. However, if we look at users' heart rates during sleep times, they are higher than they should be. We should market how the Bellabeat Time can help users monitor their sleep patterns. We know Bellabeat caters to women. So, it would help especially during the menstrual cycle, when users mmight have difficultly sleeping.
+
+Reference: https://www.health.harvard.edu/blog/how-does-sleep-affect-your-heart-rate-2021012921846
+
+3) Users are sedentary for a majority of the day. They rarely engange in moderate or very active exercise. The Bellabeat Time could be great for mothers who may only have time or energy for light activity. Advertisements on YouTube and Google for content related to motherhood is a possibility.
+
+*Next steps: 
+ - In a new survey, record more weights and BMIs to see if users are losing weight with their FitBit.
+ - Track users over a 3-month period to see how different activitly levels affect heart rate.
+ - Look at if family size affects activity levels
+ - Track what hours users get up and go to sleep
+
+
+

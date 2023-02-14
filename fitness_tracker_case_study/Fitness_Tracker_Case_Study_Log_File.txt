@@ -1,0 +1,38 @@
+
+
+----------------------------
+|  02/04                    |
+----------------------------
+
+- checked if time in bed was less than time asleep in table 'sleepday_merged'
+- checked for duplicate values in all tables
+
+added
+--------
+
+modified
+---------
+- Renamed field 'FairlyActiveMinutes' to 'ModeratelyActiveMinutes' in table 'dailyActivity_merged'
+
+removed
+--------
+- 'Fat' field from 'weightLogInfo_merged' table
+
+
+----------------------------
+|   02/06                  |
+----------------------------
+
+added
+--------
+
+modified
+---------
+- Renamed field 'FairlyActiveMinutes' to 'ModeratelyActiveMinutes'
+
+removed
+--------
+- filtered records with 0 calories and 0 steps in table 'dailyActivity_merged'
+- filtered records with 1440 minutes of sedentary time in table 'dailyActivity_merged'
+- filtered records where the sum of all minutes are not equal to 1440 minutes in  table 'dailyActivity_merged'
+
